@@ -31,7 +31,7 @@ dependencies {
 
 group = "io.github.bjoernmayer"
 
-version = "0.0.0"
+version = "0.1.0"
 
 gradlePlugin {
     website = "https://github.com/bjoernmayer/gradle-project-dependents"
@@ -42,8 +42,8 @@ gradlePlugin {
         implementationClass = "io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsGradlePlugin"
 
         displayName = "Project Dependents"
-        description = "List dependents of a given project"
-        tags = listOf("dependencies", "multi-module")
+        description = "List dependents of your project in multi-projects "
+        tags = listOf("dependencies", "multi-project")
     }
 }
 
