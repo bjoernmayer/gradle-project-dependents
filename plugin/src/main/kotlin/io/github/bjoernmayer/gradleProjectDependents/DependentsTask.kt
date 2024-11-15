@@ -12,13 +12,20 @@ public abstract class DependentsTask : DefaultTask() {
     private val thisProjectName = project.projectPath
     private val rootProjectName = project.rootProject.name
     private val dependencyGraph: Map<String, ProjectDependents> =
-        project.rootProject.allprojects.associate {
+        project.rootProject.allprojects.sortedBy { it.projectPath }.associate {
             val projectPath = it.projectPath
 
             projectPath to
                 ProjectDependents(
                     projectPath,
-                    mutableMapOf(),
+                    sortedMapOf(
+                        object : Comparator<String> {
+                            override fun compare(
+                                o1: String,
+                                o2: String,
+                            ): Int = o1.compareTo(o2)
+                        },
+                    ),
                 )
         }
 
@@ -47,6 +54,7 @@ public abstract class DependentsTask : DefaultTask() {
 
                         if (projectDependents !in dependents) {
                             dependents.add(projectDependents)
+                            dependents.sortBy { it.name }
                         }
 
                         dependents
