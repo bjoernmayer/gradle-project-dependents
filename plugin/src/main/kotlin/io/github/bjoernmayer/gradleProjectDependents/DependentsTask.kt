@@ -60,11 +60,11 @@ public abstract class DependentsTask : DefaultTask() {
     public fun list() {
         val projectDependents = dependencyGraph[thisProjectName] ?: return
 
-        projectDependents.print(emptyList(), 0, false, null)
+        projectDependents.print(emptySet(), 0, false, null)
     }
 
     private fun ProjectDependents.print(
-        parents: List<ProjectDependents>,
+        alreadyPrintedConnections: Set<Connection>,
         level: Int = 1,
         last: Boolean,
         configuration: String?,
@@ -77,17 +77,31 @@ public abstract class DependentsTask : DefaultTask() {
             }
         logger.lifecycle("|    ".repeat(level) + folderIcon + "--- ${this.name} ${configuration?.let { "($it)" } ?: ""}")
 
-        if (this !in parents) {
-            dependents
-                .filterNot {
-                    it.key in excludedConfigurations
-                }.entries
-                .forEachIndexed { index, (configuration, dependents) ->
-                    dependents.forEach { projectDependents ->
-                        projectDependents.print(parents + listOf(projectDependents), level + 1, index == dependents.size - 1, configuration)
+        dependents
+            .filterNot {
+                it.key in excludedConfigurations
+            }.entries
+            .forEach { (configuration, dependents) ->
+                dependents.forEachIndexed { index, projectDependents ->
+                    val connection =
+                        Connection(
+                            configuration = configuration,
+                            dependentProjectName = this.name,
+                            dependencyProjectName = projectDependents.name,
+                        )
+
+                    if (connection in alreadyPrintedConnections) {
+                        return@forEachIndexed
                     }
+
+                    projectDependents.print(
+                        alreadyPrintedConnections + setOf(connection),
+                        level + 1,
+                        index == dependents.size - 1,
+                        configuration,
+                    )
                 }
-        }
+            }
     }
 
     private companion object {
