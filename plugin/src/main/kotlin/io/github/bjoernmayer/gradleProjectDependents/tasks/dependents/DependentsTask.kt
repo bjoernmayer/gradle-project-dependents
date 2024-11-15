@@ -1,13 +1,32 @@
-package io.github.bjoernmayer.gradleProjectDependents
+package io.github.bjoernmayer.gradleProjectDependents.tasks.dependents
 
+import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.Printer
+import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.StdOutPrinter
+import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.YamlPrinter
+import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
+import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
 public abstract class DependentsTask : DefaultTask() {
-    @Input
-    public val excludedConfigurations: MutableSet<String> = mutableSetOf()
+    @get:Input
+    internal val excludedConfigurations: MutableSet<Configuration> = mutableSetOf()
+
+    @get:OutputFile
+    @get:Optional
+    internal val outputFile = project.objects.fileProperty()
+
+    @get:Input
+    internal var generateStdOutGraph: Boolean = true
+
+    @get:Input
+    internal var generateYamlGraph: Boolean = false
+
+    private lateinit var printers: Set<Printer>
 
     private val thisProjectName = project.projectPath
     private val rootProjectName = project.rootProject.name
@@ -19,11 +38,11 @@ public abstract class DependentsTask : DefaultTask() {
                 ProjectDependents(
                     projectPath,
                     sortedMapOf(
-                        object : Comparator<String> {
+                        object : Comparator<Configuration> {
                             override fun compare(
-                                o1: String,
-                                o2: String,
-                            ): Int = o1.compareTo(o2)
+                                o1: Configuration,
+                                o2: Configuration,
+                            ): Int = o1.name.compareTo(o2.name)
                         },
                     ),
                 )
@@ -44,8 +63,8 @@ public abstract class DependentsTask : DefaultTask() {
                     val projectDependency = dependencyGraph[projectDependencyPath] ?: return@forEachConfiguration
 
                     // Add this project to the dependents of the dependency
-                    projectDependency.dependents as MutableMap<String, List<ProjectDependents>>
-                    projectDependency.dependents.compute(configuration.name) { _, dependents: List<ProjectDependents>? ->
+                    projectDependency.dependents as MutableMap<Configuration, List<ProjectDependents>>
+                    projectDependency.dependents.compute(Configuration(configuration)) { _, dependents: List<ProjectDependents>? ->
                         if (dependents == null) {
                             return@compute mutableListOf(projectDependents)
                         }
@@ -66,50 +85,20 @@ public abstract class DependentsTask : DefaultTask() {
 
     @TaskAction
     public fun list() {
-        val projectDependents = dependencyGraph[thisProjectName] ?: return
+        printers =
+            buildSet {
+                if (generateStdOutGraph) {
+                    this.add(StdOutPrinter(excludedConfigurations))
+                }
 
-        projectDependents.print(emptySet(), 0, false, null)
-    }
-
-    private fun ProjectDependents.print(
-        alreadyPrintedConnections: Set<Connection>,
-        level: Int = 1,
-        last: Boolean,
-        configuration: String?,
-    ) {
-        val folderIcon =
-            if (last) {
-                "\\"
-            } else {
-                "+"
-            }
-        logger.lifecycle("|    ".repeat(level) + folderIcon + "--- ${this.name} ${configuration?.let { "($it)" } ?: ""}")
-
-        dependents
-            .filterNot {
-                it.key in excludedConfigurations
-            }.entries
-            .forEach { (configuration, dependents) ->
-                dependents.forEachIndexed { index, projectDependents ->
-                    val connection =
-                        Connection(
-                            configuration = configuration,
-                            dependentProjectName = this.name,
-                            dependencyProjectName = projectDependents.name,
-                        )
-
-                    if (connection in alreadyPrintedConnections) {
-                        return@forEachIndexed
-                    }
-
-                    projectDependents.print(
-                        alreadyPrintedConnections + setOf(connection),
-                        level + 1,
-                        index == dependents.size - 1,
-                        configuration,
-                    )
+                if (generateYamlGraph) {
+                    this.add(YamlPrinter(excludedConfigurations, outputFile.get().asFile))
                 }
             }
+
+        val projectDependents = dependencyGraph[thisProjectName] ?: return
+
+        printers.forEach { printer -> printer.print(projectDependents) }
     }
 
     private companion object {
