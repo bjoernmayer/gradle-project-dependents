@@ -24,14 +24,13 @@ repositories {
 dependencies {
     implementation(gradleApi())
 
-
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.11.3")
     testImplementation("io.mockk:mockk:1.13.13")
 }
 
 group = "io.github.bjoernmayer"
 
-version = "0.1.0"
+version = "0.2.0"
 
 gradlePlugin {
     website = "https://github.com/bjoernmayer/gradle-project-dependents"
@@ -42,8 +41,8 @@ gradlePlugin {
         implementationClass = "io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsGradlePlugin"
 
         displayName = "Project Dependents"
-        description = "List dependents of your project in multi-projects "
-        tags = listOf("dependencies", "multi-project")
+        description = "List project dependents on a project in multi-project"
+        tags = listOf("dependents", "dependencies", "multi-project")
     }
 }
 

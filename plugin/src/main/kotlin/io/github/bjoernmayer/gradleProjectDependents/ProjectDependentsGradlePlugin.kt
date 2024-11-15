@@ -5,6 +5,11 @@ import org.gradle.api.Project
 
 public class ProjectDependentsGradlePlugin : Plugin<Project> {
     override fun apply(target: Project) {
-        val dependentsTaskProvider = target.tasks.register("dependents", DependentsTask::class.java)
+        val extension = target.project.extensions.create("projectDependents", ProjectDependentsExtension::class.java)
+
+        target.tasks.register("dependents", DependentsTask::class.java) {
+            it.group = "help"
+            it.excludedConfigurations.addAll(extension.excludedConfigurations)
+        }
     }
 }
