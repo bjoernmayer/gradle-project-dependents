@@ -14,7 +14,7 @@ import org.gradle.api.tasks.TaskAction
 
 public abstract class DependentsTask : DefaultTask() {
     @get:Input
-    internal val excludedConfigurations: MutableSet<Configuration> = mutableSetOf()
+    internal val excludedConfs: MutableSet<String> = mutableSetOf()
 
     @get:OutputFile
     @get:Optional
@@ -27,6 +27,7 @@ public abstract class DependentsTask : DefaultTask() {
     internal var generateYamlGraph: Boolean = false
 
     private lateinit var printers: Set<Printer>
+    private lateinit var excludedConfigurations: Set<Configuration>
 
     private val thisProjectName = project.projectPath
     private val rootProjectName = project.rootProject.name
@@ -85,6 +86,7 @@ public abstract class DependentsTask : DefaultTask() {
 
     @TaskAction
     public fun list() {
+        excludedConfigurations = excludedConfs.map { Configuration(it) }.toSet()
         printers =
             buildSet {
                 if (generateStdOutGraph) {

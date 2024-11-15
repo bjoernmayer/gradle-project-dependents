@@ -1,7 +1,6 @@
 package io.github.bjoernmayer.gradleProjectDependents
 
 import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.DependentsTask
-import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -12,7 +11,7 @@ public class ProjectDependentsGradlePlugin : Plugin<Project> {
         target.tasks.register("dependents", DependentsTask::class.java) { task ->
             task.group = "help"
 
-            task.excludedConfigurations.addAll(extension.excludedConfigurations.map { Configuration(it) })
+            task.excludedConfs.addAll(extension.excludedConfigurations.map { it })
 
             task.generateStdOutGraph = extension.generateStdOutGraph
 
