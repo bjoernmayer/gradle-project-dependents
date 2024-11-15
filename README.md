@@ -5,6 +5,7 @@
 Gradle Plugin to list project dependents of a project in multi-projects.
 
 ## Usage
+
 Using the https://docs.gradle.org/current/userguide/plugins.html#sec:plugins_block:
 
 ```kts
@@ -33,12 +34,15 @@ apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
 ## Tasks
 
 ### `dependents`
+
 Displays a tree of dependent projects on the project, where the task was executed in.
 
 #### Example:
+
 Imagine a multi-project with Project A, Project B, Project C
 
 Project B `build.gradle.kts`:
+
 ```
 dependencies {
     implementation(project(":projectA"))
@@ -46,6 +50,7 @@ dependencies {
 ```
 
 Project C `build.gradle.kts`:
+
 ```
 dependencies {
     implementation(project(":projectA"))
@@ -54,11 +59,13 @@ dependencies {
 ```
 
 Executing the task:
+
 ```bash
 ./gradlew :projectA:dependents
 ```
 
 Expected output:
+
 ```bash
 +--- project root-project-name:projectA
 |    +--- project root-project-name:projectB (implementation)
@@ -67,7 +74,9 @@ Expected output:
 ```
 
 ## Configuration
+
 ### `excludedConfigurations`
+
 Configurations can be excluded from the printed graph by adding them to `excludedConfigurations`:
 
 ```kts
@@ -78,7 +87,37 @@ projectDependents {
 }
 ```
 
+### `generateStdOutGraph`
+
+Default is set to `true`.
+
+Setting this to `false` disables the usual graph of dependents.
+
+```kts
+// build.gradle.kts
+
+projectDependents {
+    generateStdOutGraph = false
+}
+```
+
+### `generateYamlGraph`
+
+Default is set to `false`.
+
+Setting this will generate a `graph.yaml` in `build/projectDependents/`.
+It is a yaml representation of the graph.
+
+```kts
+// build.gradle.kts
+
+projectDependents {
+    generateYamlGraph = true
+}
+```
+
 ## Developing
+
 Checkout this repository next to some project, where you want to use it.
 Then in the `settings.gradle.kts` of said project, add this:
 
@@ -91,6 +130,7 @@ pluginManagement {
 ```
 
 Then, you can just apply the plugin like usual:
+
 ```kts
 // build.gradle.kts
 
