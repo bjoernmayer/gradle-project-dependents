@@ -19,6 +19,8 @@ public class ProjectDependentsGradlePlugin : Plugin<Project> {
                 task.generateYamlGraph = true
                 task.outputFile.set(target.layout.buildDirectory.file("projectDependents/graph.yaml"))
             }
+
+            task.outputs.upToDateWhen { false }
         }
     }
 }
