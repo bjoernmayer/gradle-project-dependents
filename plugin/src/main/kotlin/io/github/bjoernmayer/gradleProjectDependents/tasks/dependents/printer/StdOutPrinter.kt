@@ -8,47 +8,50 @@ internal class StdOutPrinter(
     override val excludedConfigurations: Set<Configuration>,
 ) : Printer {
     override fun print(projectDependents: ProjectDependents) {
-        projectDependents.print(emptySet(), 0, false, null)
+        print(projectDependents.format(emptySet(), 0, false, null))
     }
 
-    private fun ProjectDependents.print(
+    private fun ProjectDependents.format(
         alreadyPrintedConnections: Set<Connection>,
         level: Int = 1,
         last: Boolean,
         configuration: String?,
-    ) {
+    ): String {
         val folderIcon =
             if (last) {
                 "\\"
             } else {
                 "+"
             }
-        println("|    ".repeat(level) + folderIcon + "--- ${this.name} ${configuration?.let { "($it)" } ?: ""}")
+        return buildString {
+            appendLine("|    ".repeat(level) + folderIcon + "--- ${this@format.name} ${configuration?.let { "($it)" } ?: ""}")
+            dependents
+                .filterNot {
+                    it.key in excludedConfigurations
+                }.entries
+                .forEach { (configuration, dependents) ->
+                    dependents.forEachIndexed { index, projectDependents ->
+                        val connection =
+                            Connection(
+                                configuration = configuration,
+                                dependentProjectName = this@format.name,
+                                dependencyProjectName = projectDependents.name,
+                            )
 
-        dependents
-            .filterNot {
-                it.key in excludedConfigurations
-            }.entries
-            .forEach { (configuration, dependents) ->
-                dependents.forEachIndexed { index, projectDependents ->
-                    val connection =
-                        Connection(
-                            configuration = configuration,
-                            dependentProjectName = this.name,
-                            dependencyProjectName = projectDependents.name,
+                        if (connection in alreadyPrintedConnections) {
+                            return@forEachIndexed
+                        }
+
+                        append(
+                            projectDependents.format(
+                                alreadyPrintedConnections + setOf(connection),
+                                level + 1,
+                                index == dependents.size - 1,
+                                configuration.name,
+                            ),
                         )
-
-                    if (connection in alreadyPrintedConnections) {
-                        return@forEachIndexed
                     }
-
-                    projectDependents.print(
-                        alreadyPrintedConnections + setOf(connection),
-                        level + 1,
-                        index == dependents.size - 1,
-                        configuration.name,
-                    )
                 }
-            }
+        }
     }
 }
