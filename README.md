@@ -41,19 +41,19 @@ Displays a tree of dependent projects on the project, where the task was execute
 
 Imagine a multi-project with Project A, Project B, Project C
 
-Project B `build.gradle.kts`:
+Project A `build.gradle.kts`:
 
 ```
 dependencies {
-    implementation(project(":projectA"))
+    implementation(project(":projectB"))
+    implementation(project(":projectC"))
 }
 ```
 
-Project C `build.gradle.kts`:
+Project B `build.gradle.kts`:
 
 ```
-dependencies {
-    implementation(project(":projectA"))
+dependencies {    
     implementation(project(":projectC"))
 }
 ```
