@@ -9,6 +9,7 @@ import java.io.File
 
 internal class JsonPrinter(
     override val excludedConfigurations: Set<Configuration>,
+    override val maxDepth: Int?,
     private val outputFile: File,
 ) : Printer {
     private val json =
@@ -23,7 +24,7 @@ internal class JsonPrinter(
     ) {
         outputFile.parentFile?.mkdirs()
 
-        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations)
+        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations, maxDepth)
         val jsonString = json.encodeToString(DependentsGraph.serializer(), graph)
 
         outputFile.writeText(jsonString)

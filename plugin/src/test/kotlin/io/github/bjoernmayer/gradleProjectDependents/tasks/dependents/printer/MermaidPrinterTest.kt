@@ -25,7 +25,7 @@ class MermaidPrinterTest {
     @Test
     fun `should write mermaid file for project with no dependents`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
@@ -40,7 +40,7 @@ class MermaidPrinterTest {
     @Test
     fun `should write mermaid file with dependents`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -64,7 +64,7 @@ class MermaidPrinterTest {
     @Test
     fun `should write mermaid file with nested dependents`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val grandChild = ProjectDependents(":web")
         val config = Configuration("implementation")
         val child =
@@ -91,7 +91,7 @@ class MermaidPrinterTest {
     fun `should exclude configurations`() {
         val outputFile = File(tempDir, "graph.md")
         val excludedConfig = Configuration("testImplementation")
-        val printer = MermaidPrinter(setOf(excludedConfig), outputFile)
+        val printer = MermaidPrinter(setOf(excludedConfig), null, outputFile)
 
         val testChild = ProjectDependents(":test-utils")
         val implChild = ProjectDependents(":app")
@@ -119,7 +119,7 @@ class MermaidPrinterTest {
     @Test
     fun `should write multiple dependents for same configuration`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val config = Configuration("implementation")
@@ -140,7 +140,7 @@ class MermaidPrinterTest {
     @Test
     fun `should reset file modification time`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -157,7 +157,7 @@ class MermaidPrinterTest {
     @Test
     fun `should handle multiple configurations`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val apiConfig = Configuration("api")
@@ -185,7 +185,7 @@ class MermaidPrinterTest {
     @Test
     fun `should sanitize node ids`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app-module")
         val config = Configuration("implementation")
         val projectDependents =
@@ -205,7 +205,7 @@ class MermaidPrinterTest {
     @Test
     fun `should create bottom-to-top flowchart`() {
         val outputFile = File(tempDir, "graph.md")
-        val printer = MermaidPrinter(emptySet(), outputFile)
+        val printer = MermaidPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =

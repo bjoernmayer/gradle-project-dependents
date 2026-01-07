@@ -230,4 +230,37 @@ class ProjectDependentsFunctionalTest {
         assertThat(result.output).contains("test-project:api-client")
         assertThat(result.output).contains("api")
     }
+
+    @Test
+    fun `should limit depth when depth option is set`() {
+        setupSettings(subprojects = listOf("core", "service", "app"))
+        setupRootBuildFile(extensionConfig = "depth.set(1)")
+        setupSubproject("core")
+        setupSubproject("service", dependencies = mapOf("implementation" to "core"))
+        setupSubproject("app", dependencies = mapOf("implementation" to "service"))
+
+        val result = runDependentsTask("core")
+
+        assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.output).contains("test-project:core")
+        assertThat(result.output).contains("test-project:service")
+        // app should NOT appear because it's at depth 2 (service -> app)
+        assertThat(result.output).doesNotContain("test-project:app")
+    }
+
+    @Test
+    fun `should show full tree when depth is not set`() {
+        setupSettings(subprojects = listOf("core", "service", "app"))
+        setupRootBuildFile()
+        setupSubproject("core")
+        setupSubproject("service", dependencies = mapOf("implementation" to "core"))
+        setupSubproject("app", dependencies = mapOf("implementation" to "service"))
+
+        val result = runDependentsTask("core")
+
+        assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.output).contains("test-project:core")
+        assertThat(result.output).contains("test-project:service")
+        assertThat(result.output).contains("test-project:app")
+    }
 }

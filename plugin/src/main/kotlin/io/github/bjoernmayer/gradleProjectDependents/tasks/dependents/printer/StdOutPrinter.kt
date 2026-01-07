@@ -7,12 +7,13 @@ import org.gradle.api.logging.Logger
 
 internal class StdOutPrinter(
     override val excludedConfigurations: Set<Configuration>,
+    override val maxDepth: Int?,
 ) : Printer {
     override fun print(
         projectDependents: ProjectDependents,
         logger: Logger,
     ) {
-        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations)
+        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations, maxDepth)
         print(graph.format(0, false, null))
     }
 

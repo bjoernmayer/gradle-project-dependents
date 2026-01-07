@@ -8,6 +8,7 @@ import java.io.File
 
 internal class MermaidPrinter(
     override val excludedConfigurations: Set<Configuration>,
+    override val maxDepth: Int?,
     private val outputFile: File,
 ) : Printer {
     override fun print(
@@ -16,7 +17,7 @@ internal class MermaidPrinter(
     ) {
         outputFile.parentFile?.mkdirs()
 
-        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations)
+        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations, maxDepth)
         val connections = graph.collectConnections()
 
         val content =

@@ -26,7 +26,7 @@ class YamlPrinterTest {
     @Test
     fun `should write yaml file for project with no dependents`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
@@ -39,7 +39,7 @@ class YamlPrinterTest {
     @Test
     fun `should write yaml file with dependents`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -61,7 +61,7 @@ class YamlPrinterTest {
     @Test
     fun `should write yaml file with nested dependents`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val grandChild = ProjectDependents(":web")
         val config = Configuration("implementation")
         val child =
@@ -88,7 +88,7 @@ class YamlPrinterTest {
     fun `should exclude configurations`() {
         val outputFile = File(tempDir, "graph.yaml")
         val excludedConfig = Configuration("testImplementation")
-        val printer = YamlPrinter(setOf(excludedConfig), outputFile)
+        val printer = YamlPrinter(setOf(excludedConfig), null, outputFile)
 
         val testChild = ProjectDependents(":test-utils")
         val implChild = ProjectDependents(":app")
@@ -116,7 +116,7 @@ class YamlPrinterTest {
     @Test
     fun `should write multiple dependents for same configuration`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val config = Configuration("implementation")
@@ -137,7 +137,7 @@ class YamlPrinterTest {
     @Test
     fun `should reset file modification time`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
@@ -149,7 +149,7 @@ class YamlPrinterTest {
     @Test
     fun `should handle multiple configurations`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val apiConfig = Configuration("api")
@@ -177,7 +177,7 @@ class YamlPrinterTest {
     @Test
     fun `should log path message`() {
         val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val printer = YamlPrinter(emptySet(), null, outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)

@@ -55,6 +55,10 @@ public abstract class DependentsTask : DefaultTask() {
     internal abstract val outputFormats: SetProperty<OutputFormat>
 
     @get:Input
+    @get:org.gradle.api.tasks.Optional
+    internal abstract val depth: Property<Int>
+
+    @get:Input
     internal abstract val thisProjectPath: Property<String>
 
     @get:Input
@@ -76,7 +80,8 @@ public abstract class DependentsTask : DefaultTask() {
     @TaskAction
     public fun list() {
         val excludedConfigurations = excludedConfs.get().map { Configuration(it) }.toSet()
-        val printers = buildPrinters(excludedConfigurations)
+        val maxDepth = depth.orNull
+        val printers = buildPrinters(excludedConfigurations, maxDepth)
 
         val dependencyGraph = buildDependencyGraph()
         val projectDependents = dependencyGraph[thisProjectPath.get()] ?: return
@@ -84,15 +89,18 @@ public abstract class DependentsTask : DefaultTask() {
         printers.forEach { printer -> printer.print(projectDependents, logger) }
     }
 
-    private fun buildPrinters(excludedConfigurations: Set<Configuration>): List<Printer> =
+    private fun buildPrinters(
+        excludedConfigurations: Set<Configuration>,
+        maxDepth: Int?,
+    ): List<Printer> =
         outputFormats
             .get()
             .map { format ->
                 when (format) {
-                    OutputFormat.STDOUT -> StdOutPrinter(excludedConfigurations)
-                    OutputFormat.YAML -> YamlPrinter(excludedConfigurations, yamlOutputFile.get())
-                    OutputFormat.JSON -> JsonPrinter(excludedConfigurations, jsonOutputFile.get())
-                    OutputFormat.MERMAID -> MermaidPrinter(excludedConfigurations, mermaidOutputFile.get())
+                    OutputFormat.STDOUT -> StdOutPrinter(excludedConfigurations, maxDepth)
+                    OutputFormat.YAML -> YamlPrinter(excludedConfigurations, maxDepth, yamlOutputFile.get())
+                    OutputFormat.JSON -> JsonPrinter(excludedConfigurations, maxDepth, jsonOutputFile.get())
+                    OutputFormat.MERMAID -> MermaidPrinter(excludedConfigurations, maxDepth, mermaidOutputFile.get())
                 }
             }.sortedBy { it !is StdOutPrinter } // STDOUT first
 

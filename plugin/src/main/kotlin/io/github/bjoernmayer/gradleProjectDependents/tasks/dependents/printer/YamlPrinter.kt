@@ -9,6 +9,7 @@ import java.io.OutputStreamWriter
 
 internal class YamlPrinter(
     override val excludedConfigurations: Set<Configuration>,
+    override val maxDepth: Int?,
     private val outputFile: File,
 ) : Printer {
     override fun print(
@@ -17,7 +18,7 @@ internal class YamlPrinter(
     ) {
         outputFile.parentFile?.mkdirs()
 
-        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations)
+        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations, maxDepth)
 
         outputFile.writer().use { writer ->
             graph.write(writer, 0, null)

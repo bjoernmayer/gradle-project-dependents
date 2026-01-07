@@ -13,12 +13,20 @@ internal data class DependentsGraph(
         fun fromProjectDependents(
             projectDependents: ProjectDependents,
             excludedConfigurations: Set<Configuration>,
-        ): DependentsGraph = projectDependents.toGraph(excludedConfigurations, emptySet())
+            maxDepth: Int? = null,
+        ): DependentsGraph = projectDependents.toGraph(excludedConfigurations, emptySet(), 0, maxDepth)
 
         private fun ProjectDependents.toGraph(
             excludedConfigurations: Set<Configuration>,
             visitedPaths: Set<Pair<String, String>>,
+            currentDepth: Int,
+            maxDepth: Int?,
         ): DependentsGraph {
+            // If we've reached max depth, return node without dependents
+            if (maxDepth != null && currentDepth >= maxDepth) {
+                return DependentsGraph(name = name, dependents = emptyMap())
+            }
+
             val filteredDependents =
                 dependents
                     .filterNot { it.key in excludedConfigurations }
@@ -31,7 +39,7 @@ internal data class DependentsGraph(
                                 return@mapNotNull null
                             }
 
-                            dependent.toGraph(excludedConfigurations, visitedPaths + path)
+                            dependent.toGraph(excludedConfigurations, visitedPaths + path, currentDepth + 1, maxDepth)
                         }
                     }.filterValues { it.isNotEmpty() }
 

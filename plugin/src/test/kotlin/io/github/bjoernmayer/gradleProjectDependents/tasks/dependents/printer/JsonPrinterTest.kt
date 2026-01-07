@@ -25,7 +25,7 @@ class JsonPrinterTest {
     @Test
     fun `should write json file for project with no dependents`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
@@ -38,7 +38,7 @@ class JsonPrinterTest {
     @Test
     fun `should write json file with dependents`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -59,7 +59,7 @@ class JsonPrinterTest {
     @Test
     fun `should write json file with nested dependents`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val grandChild = ProjectDependents(":web")
         val config = Configuration("implementation")
         val child =
@@ -86,7 +86,7 @@ class JsonPrinterTest {
     fun `should exclude configurations`() {
         val outputFile = File(tempDir, "graph.json")
         val excludedConfig = Configuration("testImplementation")
-        val printer = JsonPrinter(setOf(excludedConfig), outputFile)
+        val printer = JsonPrinter(setOf(excludedConfig), null, outputFile)
 
         val testChild = ProjectDependents(":test-utils")
         val implChild = ProjectDependents(":app")
@@ -114,7 +114,7 @@ class JsonPrinterTest {
     @Test
     fun `should write multiple dependents for same configuration`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val config = Configuration("implementation")
@@ -135,7 +135,7 @@ class JsonPrinterTest {
     @Test
     fun `should reset file modification time`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
@@ -146,7 +146,7 @@ class JsonPrinterTest {
     @Test
     fun `should produce valid json`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -166,7 +166,7 @@ class JsonPrinterTest {
     @Test
     fun `should handle multiple configurations`() {
         val outputFile = File(tempDir, "graph.json")
-        val printer = JsonPrinter(emptySet(), outputFile)
+        val printer = JsonPrinter(emptySet(), null, outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val apiConfig = Configuration("api")

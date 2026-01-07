@@ -17,6 +17,7 @@ public class ProjectDependentsGradlePlugin : Plugin<Project> {
 
             task.excludedConfs.set(extension.excludedConfigurations)
             task.outputFormats.set(extension.outputFormats)
+            task.depth.set(extension.depth)
 
             task.thisProjectPath.set(target.projectPath)
             task.rootProjectName.set(target.rootProject.name)

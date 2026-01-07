@@ -87,6 +87,22 @@ projectDependents {
 }
 ```
 
+### `depth`
+
+Limit the depth of the dependency tree to display. When not set, the full tree is displayed.
+
+```kts
+// build.gradle.kts
+
+projectDependents {
+    // Show only direct dependents
+    depth.set(1)
+
+    // Or show dependents and their dependents
+    depth.set(2)
+}
+```
+
 ### `outputFormats`
 
 Configure which output formats to generate. Available formats:

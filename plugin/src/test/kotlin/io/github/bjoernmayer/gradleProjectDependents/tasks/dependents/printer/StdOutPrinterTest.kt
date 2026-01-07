@@ -31,7 +31,7 @@ class StdOutPrinterTest {
 
     @Test
     fun `should print project with no dependents`() {
-        val printer = StdOutPrinter(emptySet())
+        val printer = StdOutPrinter(emptySet(), null)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
@@ -42,7 +42,7 @@ class StdOutPrinterTest {
 
     @Test
     fun `should print project with single dependent`() {
-        val printer = StdOutPrinter(emptySet())
+        val printer = StdOutPrinter(emptySet(), null)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -61,7 +61,7 @@ class StdOutPrinterTest {
 
     @Test
     fun `should print nested dependents`() {
-        val printer = StdOutPrinter(emptySet())
+        val printer = StdOutPrinter(emptySet(), null)
         val grandChild = ProjectDependents(":web")
         val config = Configuration("implementation")
         val child =
@@ -86,7 +86,7 @@ class StdOutPrinterTest {
     @Test
     fun `should exclude configurations`() {
         val excludedConfig = Configuration("testImplementation")
-        val printer = StdOutPrinter(setOf(excludedConfig))
+        val printer = StdOutPrinter(setOf(excludedConfig), null)
 
         val testChild = ProjectDependents(":test-utils")
         val implChild = ProjectDependents(":app")
@@ -113,7 +113,7 @@ class StdOutPrinterTest {
 
     @Test
     fun `should print multiple dependents for same configuration`() {
-        val printer = StdOutPrinter(emptySet())
+        val printer = StdOutPrinter(emptySet(), null)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val config = Configuration("implementation")
@@ -133,7 +133,7 @@ class StdOutPrinterTest {
 
     @Test
     fun `should handle circular dependencies by tracking connections`() {
-        val printer = StdOutPrinter(emptySet())
+        val printer = StdOutPrinter(emptySet(), null)
         val config = Configuration("implementation")
 
         // Create circular reference: core -> app -> core (should not loop forever)
@@ -157,5 +157,61 @@ class StdOutPrinterTest {
         val output = outputStream.toString()
         assertThat(output).contains("myproject:core")
         assertThat(output).contains(":app")
+    }
+
+    @Test
+    fun `should limit depth to 1 when maxDepth is set to 1`() {
+        val printer = StdOutPrinter(emptySet(), 1)
+        val grandChild = ProjectDependents(":web")
+        val config = Configuration("implementation")
+        val child =
+            ProjectDependents(
+                ":app",
+                sortedMapOf(configComparator, config to listOf(grandChild)),
+            )
+        val projectDependents =
+            ProjectDependents(
+                "myproject:core",
+                sortedMapOf(configComparator, config to listOf(child)),
+            )
+
+        printer.print(projectDependents, logger)
+
+        val output = outputStream.toString()
+        assertThat(output).contains("myproject:core")
+        assertThat(output).contains(":app")
+        // Should NOT contain grandchild because depth is limited to 1
+        assertThat(output).doesNotContain(":web")
+    }
+
+    @Test
+    fun `should limit depth to 2 when maxDepth is set to 2`() {
+        val printer = StdOutPrinter(emptySet(), 2)
+        val greatGrandChild = ProjectDependents(":api")
+        val config = Configuration("implementation")
+        val grandChild =
+            ProjectDependents(
+                ":web",
+                sortedMapOf(configComparator, config to listOf(greatGrandChild)),
+            )
+        val child =
+            ProjectDependents(
+                ":app",
+                sortedMapOf(configComparator, config to listOf(grandChild)),
+            )
+        val projectDependents =
+            ProjectDependents(
+                "myproject:core",
+                sortedMapOf(configComparator, config to listOf(child)),
+            )
+
+        printer.print(projectDependents, logger)
+
+        val output = outputStream.toString()
+        assertThat(output).contains("myproject:core")
+        assertThat(output).contains(":app")
+        assertThat(output).contains(":web")
+        // Should NOT contain great-grandchild because depth is limited to 2
+        assertThat(output).doesNotContain(":api")
     }
 }

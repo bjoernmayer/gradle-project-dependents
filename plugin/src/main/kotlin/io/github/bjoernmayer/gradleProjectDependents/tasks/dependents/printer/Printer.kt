@@ -6,6 +6,7 @@ import org.gradle.api.logging.Logger
 
 internal interface Printer {
     val excludedConfigurations: Set<Configuration>
+    val maxDepth: Int?
 
     fun print(
         projectDependents: ProjectDependents,
