@@ -1,14 +1,18 @@
 package io.github.bjoernmayer.gradleProjectDependents
 
-import org.gradle.api.tasks.Input
+import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
+import javax.inject.Inject
 
-public open class ProjectDependentsExtension {
-    @get:Input
-    public val excludedConfigurations: MutableSet<String> = mutableSetOf()
+public abstract class ProjectDependentsExtension
+    @Inject
+    constructor(
+        objects: ObjectFactory,
+    ) {
+        public val excludedConfigurations: SetProperty<String> = objects.setProperty(String::class.java)
 
-    @get:Input
-    public var generateStdOutGraph: Boolean = true
+        public val generateStdOutGraph: Property<Boolean> = objects.property(Boolean::class.java).convention(true)
 
-    @get:Input
-    public var generateYamlGraph: Boolean = false
-}
+        public val generateYamlGraph: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+    }

@@ -11,6 +11,8 @@ internal class YamlPrinter(
     private val outputFile: File,
 ) : Printer {
     override fun print(projectDependents: ProjectDependents) {
+        outputFile.parentFile?.mkdirs()
+
         outputFile.writer().use { writer ->
             projectDependents.write(writer, emptySet(), 0, null)
         }

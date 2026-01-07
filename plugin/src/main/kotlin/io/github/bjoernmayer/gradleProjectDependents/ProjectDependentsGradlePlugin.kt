@@ -10,17 +10,16 @@ public class ProjectDependentsGradlePlugin : Plugin<Project> {
 
         target.tasks.register("dependents", DependentsTask::class.java) { task ->
             task.group = "help"
+            task.description = "Displays the projects that depend on this project"
 
-            task.excludedConfs.addAll(extension.excludedConfigurations.map { it })
+            task.excludedConfs.set(extension.excludedConfigurations)
 
-            task.generateStdOutGraph = extension.generateStdOutGraph
+            task.generateStdOutGraph.set(extension.generateStdOutGraph)
 
-            if (extension.generateYamlGraph) {
-                task.generateYamlGraph = true
-                task.outputFile.set(target.layout.buildDirectory.file("projectDependents/graph.yaml"))
-            }
-
-            task.outputs.upToDateWhen { false }
+            task.generateYamlGraph.set(extension.generateYamlGraph)
+            task.outputFile.set(
+                target.layout.buildDirectory.file("projectDependents/graph.yaml"),
+            )
         }
     }
 }

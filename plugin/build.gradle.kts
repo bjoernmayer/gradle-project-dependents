@@ -26,6 +26,8 @@ dependencies {
 
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.11.3")
     testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.assertj:assertj-core:3.26.3")
+    testImplementation(gradleTestKit())
 }
 
 group = "io.github.bjoernmayer"
@@ -36,7 +38,8 @@ gradlePlugin {
     website = "https://github.com/bjoernmayer/gradle-project-dependents"
     vcsUrl = "https://github.com/bjoernmayer/gradle-project-dependents"
 
-    val artifactregistryGradlePlugin by plugins.creating {
+    @Suppress("unused")
+    val projectDependentsPlugin by plugins.creating {
         id = "io.github.bjoernmayer.gradle-project-dependents"
         implementationClass = "io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsGradlePlugin"
 
@@ -57,4 +60,24 @@ idea {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+// Configure functional test source set
+val functionalTestSourceSet: SourceSet =
+    sourceSets.create("functionalTest")
+
+configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["functionalTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
+
+// Add a task to run the functional tests
+val functionalTest by tasks.registering(Test::class) {
+    testClassesDirs = functionalTestSourceSet.output.classesDirs
+    classpath = functionalTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+}
+
+gradlePlugin.testSourceSets.add(functionalTestSourceSet)
+
+tasks.check {
+    dependsOn(functionalTest)
 }

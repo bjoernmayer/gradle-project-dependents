@@ -7,53 +7,69 @@ import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
 import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.UntrackedTask
 
+@UntrackedTask(because = "Dependency graph can change without file modifications")
 public abstract class DependentsTask : DefaultTask() {
     @get:Input
-    internal val excludedConfs: MutableSet<String> = mutableSetOf()
+    internal abstract val excludedConfs: SetProperty<String>
 
-    @get:OutputFile
-    @get:Optional
+    // Not annotated as @OutputFile since this task is @UntrackedTask
+    @get:Internal
     internal val outputFile = project.objects.fileProperty()
 
     @get:Input
-    internal var generateStdOutGraph: Boolean = true
+    internal abstract val generateStdOutGraph: Property<Boolean>
 
     @get:Input
-    internal var generateYamlGraph: Boolean = false
+    internal abstract val generateYamlGraph: Property<Boolean>
 
-    private lateinit var printers: Set<Printer>
-    private lateinit var excludedConfigurations: Set<Configuration>
+    @TaskAction
+    public fun list() {
+        val excludedConfigurations = excludedConfs.get().map { Configuration(it) }.toSet()
+        val printers = buildPrinters(excludedConfigurations)
 
-    private val thisProjectName = project.projectPath
-    private val rootProjectName = project.rootProject.name
-    private val dependencyGraph: Map<String, ProjectDependents> =
-        project.rootProject.allprojects.sortedBy { it.projectPath }.associate {
-            val projectPath = it.projectPath
+        val dependencyGraph = buildDependencyGraph()
+        val projectDependents = dependencyGraph[thisProjectPath] ?: return
 
-            projectPath to
-                ProjectDependents(
-                    projectPath,
-                    sortedMapOf(
-                        object : Comparator<Configuration> {
-                            override fun compare(
-                                o1: Configuration,
-                                o2: Configuration,
-                            ): Int = o1.name.compareTo(o2.name)
-                        },
-                    ),
-                )
+        printers.forEach { printer -> printer.print(projectDependents) }
+    }
+
+    private fun buildPrinters(excludedConfigurations: Set<Configuration>): Set<Printer> =
+        buildSet {
+            if (generateStdOutGraph.get()) {
+                add(StdOutPrinter(excludedConfigurations))
+            }
+
+            if (generateYamlGraph.get()) {
+                add(YamlPrinter(excludedConfigurations, outputFile.get().asFile))
+            }
         }
 
-    init {
-        project.rootProject.allprojects.forEach { project ->
-            val projectDependents = dependencyGraph[project.projectPath] ?: return@forEach
+    private fun buildDependencyGraph(): Map<String, ProjectDependents> {
+        val rootProjectName = project.rootProject.name
+        val dependencyGraph: Map<String, ProjectDependents> =
+            project.rootProject.allprojects.sortedBy { it.projectPath }.associate {
+                val projectPath = it.projectPath
 
-            project.configurations.forEach forEachConfiguration@{ configuration ->
+                projectPath to
+                    ProjectDependents(
+                        projectPath,
+                        sortedMapOf(
+                            Comparator { o1, o2 -> o1.name.compareTo(o2.name) },
+                        ),
+                    )
+            }
+
+        project.rootProject.allprojects.forEach { proj ->
+            val projectDependents = dependencyGraph[proj.projectPath] ?: return@forEach
+
+            proj.configurations.forEach forEachConfiguration@{ configuration ->
                 configuration.dependencies.forEach forEachDependency@{ dependency ->
                     if (dependency.group?.startsWith(rootProjectName) != true) {
                         return@forEachDependency
@@ -64,44 +80,24 @@ public abstract class DependentsTask : DefaultTask() {
                     val projectDependency = dependencyGraph[projectDependencyPath] ?: return@forEachConfiguration
 
                     // Add this project to the dependents of the dependency
-                    projectDependency.dependents as MutableMap<Configuration, List<ProjectDependents>>
-                    projectDependency.dependents.compute(Configuration(configuration)) { _, dependents: List<ProjectDependents>? ->
-                        if (dependents == null) {
-                            return@compute mutableListOf(projectDependents)
+                    val dependentsMap = projectDependency.dependents as MutableMap<Configuration, MutableList<ProjectDependents>>
+                    dependentsMap.compute(Configuration(configuration)) { _, dependents ->
+                        val list = dependents ?: mutableListOf()
+                        if (projectDependents !in list) {
+                            list.add(projectDependents)
+                            list.sortBy { it.name }
                         }
-
-                        dependents as MutableList<ProjectDependents>
-
-                        if (projectDependents !in dependents) {
-                            dependents.add(projectDependents)
-                            dependents.sortBy { it.name }
-                        }
-
-                        dependents
+                        list
                     }
                 }
             }
         }
+
+        return dependencyGraph
     }
 
-    @TaskAction
-    public fun list() {
-        excludedConfigurations = excludedConfs.map { Configuration(it) }.toSet()
-        printers =
-            buildSet {
-                if (generateStdOutGraph) {
-                    this.add(StdOutPrinter(excludedConfigurations))
-                }
-
-                if (generateYamlGraph) {
-                    this.add(YamlPrinter(excludedConfigurations, outputFile.get().asFile))
-                }
-            }
-
-        val projectDependents = dependencyGraph[thisProjectName] ?: return
-
-        printers.forEach { printer -> printer.print(projectDependents) }
-    }
+    private val thisProjectPath: String
+        get() = project.projectPath
 
     private companion object {
         val Project.projectPath: String
