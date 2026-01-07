@@ -3,7 +3,6 @@ package io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer
 import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
 import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
 import io.mockk.mockk
-import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.logging.Logger
 import org.junit.jupiter.api.BeforeEach
@@ -11,7 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-class YamlPrinterTest {
+class MermaidPrinterTest {
     @TempDir
     lateinit var tempDir: File
 
@@ -24,22 +23,24 @@ class YamlPrinterTest {
     }
 
     @Test
-    fun `should write yaml file for project with no dependents`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+    fun `should write mermaid file for project with no dependents`() {
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
 
         assertThat(outputFile).exists()
         val content = outputFile.readText()
-        assertThat(content).contains("name: \"myproject\"")
+        assertThat(content).contains("```mermaid")
+        assertThat(content).contains("flowchart BT")
+        assertThat(content).contains("```")
     }
 
     @Test
-    fun `should write yaml file with dependents`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+    fun `should write mermaid file with dependents`() {
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -52,16 +53,18 @@ class YamlPrinterTest {
 
         assertThat(outputFile).exists()
         val content = outputFile.readText()
-        assertThat(content).contains("name: \"myproject:core\"")
-        assertThat(content).contains("dependents:")
-        assertThat(content).contains("\"implementation\":")
-        assertThat(content).contains("name: \":app\"")
+        assertThat(content).contains("```mermaid")
+        assertThat(content).contains("flowchart BT")
+        assertThat(content).contains(":app")
+        assertThat(content).contains("myproject:core")
+        assertThat(content).contains("implementation")
+        assertThat(content).contains("-->")
     }
 
     @Test
-    fun `should write yaml file with nested dependents`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+    fun `should write mermaid file with nested dependents`() {
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
         val grandChild = ProjectDependents(":web")
         val config = Configuration("implementation")
         val child =
@@ -79,16 +82,16 @@ class YamlPrinterTest {
 
         assertThat(outputFile).exists()
         val content = outputFile.readText()
-        assertThat(content).contains("name: \"myproject:core\"")
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("name: \":web\"")
+        assertThat(content).contains("myproject:core")
+        assertThat(content).contains(":app")
+        assertThat(content).contains(":web")
     }
 
     @Test
     fun `should exclude configurations`() {
-        val outputFile = File(tempDir, "graph.yaml")
+        val outputFile = File(tempDir, "graph.md")
         val excludedConfig = Configuration("testImplementation")
-        val printer = YamlPrinter(setOf(excludedConfig), outputFile)
+        val printer = MermaidPrinter(setOf(excludedConfig), outputFile)
 
         val testChild = ProjectDependents(":test-utils")
         val implChild = ProjectDependents(":app")
@@ -107,16 +110,16 @@ class YamlPrinterTest {
         printer.print(projectDependents, logger)
 
         val content = outputFile.readText()
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("\"implementation\":")
+        assertThat(content).contains(":app")
+        assertThat(content).contains("implementation")
         assertThat(content).doesNotContain(":test-utils")
         assertThat(content).doesNotContain("testImplementation")
     }
 
     @Test
     fun `should write multiple dependents for same configuration`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val config = Configuration("implementation")
@@ -130,26 +133,31 @@ class YamlPrinterTest {
         printer.print(projectDependents, logger)
 
         val content = outputFile.readText()
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("name: \":web\"")
+        assertThat(content).contains(":app")
+        assertThat(content).contains(":web")
     }
 
     @Test
     fun `should reset file modification time`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
-        val projectDependents = ProjectDependents("myproject")
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
+        val child = ProjectDependents(":app")
+        val config = Configuration("implementation")
+        val projectDependents =
+            ProjectDependents(
+                "myproject:core",
+                sortedMapOf(configComparator, config to listOf(child)),
+            )
 
         printer.print(projectDependents, logger)
 
-        // Last modified should be set to 0 (epoch)
         assertThat(outputFile.lastModified()).isEqualTo(0L)
     }
 
     @Test
     fun `should handle multiple configurations`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val apiConfig = Configuration("api")
@@ -168,20 +176,48 @@ class YamlPrinterTest {
         printer.print(projectDependents, logger)
 
         val content = outputFile.readText()
-        assertThat(content).contains("\"api\":")
-        assertThat(content).contains("\"implementation\":")
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("name: \":web\"")
+        assertThat(content).contains("api")
+        assertThat(content).contains("implementation")
+        assertThat(content).contains(":app")
+        assertThat(content).contains(":web")
     }
 
     @Test
-    fun `should log path message`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
-        val projectDependents = ProjectDependents("myproject")
+    fun `should sanitize node ids`() {
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
+        val child = ProjectDependents(":app-module")
+        val config = Configuration("implementation")
+        val projectDependents =
+            ProjectDependents(
+                "my.project:core",
+                sortedMapOf(configComparator, config to listOf(child)),
+            )
 
         printer.print(projectDependents, logger)
 
-        verify { logger.lifecycle(match { it.contains("YAML Graph written to") && it.contains(outputFile.absolutePath) }) }
+        val content = outputFile.readText()
+        // IDs should have colons, dashes, and dots replaced with underscores
+        assertThat(content).contains("_app_module")
+        assertThat(content).contains("my_project_core")
+    }
+
+    @Test
+    fun `should create bottom-to-top flowchart`() {
+        val outputFile = File(tempDir, "graph.md")
+        val printer = MermaidPrinter(emptySet(), outputFile)
+        val child = ProjectDependents(":app")
+        val config = Configuration("implementation")
+        val projectDependents =
+            ProjectDependents(
+                "myproject:core",
+                sortedMapOf(configComparator, config to listOf(child)),
+            )
+
+        printer.print(projectDependents, logger)
+
+        val content = outputFile.readText()
+        // BT = Bottom to Top, showing dependents pointing to their dependencies
+        assertThat(content).contains("flowchart BT")
     }
 }

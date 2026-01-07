@@ -2,6 +2,7 @@ plugins {
     idea
     `java-gradle-plugin`
     kotlin("jvm") version "2.0.21"
+    kotlin("plugin.serialization") version "2.0.21"
 
     id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
     id("com.gradle.plugin-publish") version "1.3.0"
@@ -23,6 +24,7 @@ repositories {
 
 dependencies {
     implementation(gradleApi())
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.11.3")
     testImplementation("io.mockk:mockk:1.13.13")

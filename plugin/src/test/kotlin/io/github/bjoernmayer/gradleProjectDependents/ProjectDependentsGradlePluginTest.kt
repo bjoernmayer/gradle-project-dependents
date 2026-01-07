@@ -59,23 +59,40 @@ class ProjectDependentsGradlePluginTest {
 
         val extension = project.extensions.getByType(ProjectDependentsExtension::class.java)
 
-        assertThat(extension.generateStdOutGraph.get()).isTrue()
-        assertThat(extension.generateYamlGraph.get()).isFalse()
+        assertThat(extension.outputFormats.get()).containsExactly(OutputFormat.STDOUT)
         assertThat(extension.excludedConfigurations.get()).isEmpty()
     }
 
     @Test
-    fun `should allow configuring extension`() {
+    fun `should allow configuring extension with multiple output formats`() {
         project.plugins.apply("io.github.bjoernmayer.gradle-project-dependents")
 
         val extension = project.extensions.getByType(ProjectDependentsExtension::class.java)
-        extension.generateStdOutGraph.set(false)
-        extension.generateYamlGraph.set(true)
+        extension.outputFormats.set(setOf(OutputFormat.YAML, OutputFormat.JSON, OutputFormat.MERMAID))
         extension.excludedConfigurations.add("testImplementation")
 
-        assertThat(extension.generateStdOutGraph.get()).isFalse()
-        assertThat(extension.generateYamlGraph.get()).isTrue()
+        assertThat(extension.outputFormats.get()).containsExactlyInAnyOrder(
+            OutputFormat.YAML,
+            OutputFormat.JSON,
+            OutputFormat.MERMAID,
+        )
         assertThat(extension.excludedConfigurations.get()).containsExactly("testImplementation")
+    }
+
+    @Test
+    fun `should allow adding output formats to existing set`() {
+        project.plugins.apply("io.github.bjoernmayer.gradle-project-dependents")
+
+        val extension = project.extensions.getByType(ProjectDependentsExtension::class.java)
+        // First get the current formats, then add to them
+        val currentFormats = extension.outputFormats.get().toMutableSet()
+        currentFormats.add(OutputFormat.JSON)
+        extension.outputFormats.set(currentFormats)
+
+        assertThat(extension.outputFormats.get()).containsExactlyInAnyOrder(
+            OutputFormat.STDOUT,
+            OutputFormat.JSON,
+        )
     }
 
     @Test
@@ -84,10 +101,12 @@ class ProjectDependentsGradlePluginTest {
 
         val extension = project.extensions.getByType(ProjectDependentsExtension::class.java)
         extension.excludedConfigurations.add("testRuntimeOnly")
+        extension.outputFormats.set(setOf(OutputFormat.YAML, OutputFormat.MERMAID))
 
         // Force task realization to check wiring
         val task = project.tasks.getByName("dependents") as DependentsTask
 
         assertThat(task.excludedConfs.get()).contains("testRuntimeOnly")
+        assertThat(task.outputFormats.get()).containsExactlyInAnyOrder(OutputFormat.YAML, OutputFormat.MERMAID)
     }
 }

@@ -1,33 +1,77 @@
 package io.github.bjoernmayer.gradleProjectDependents.tasks.dependents
 
+import io.github.bjoernmayer.gradleProjectDependents.OutputFormat
+import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.JsonPrinter
+import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.MermaidPrinter
 import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.Printer
 import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.StdOutPrinter
 import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.YamlPrinter
 import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
 import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
 import org.gradle.api.DefaultTask
-import org.gradle.api.Project
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.UntrackedTask
+import java.io.Serializable
+
+/**
+ * Serializable data class to hold project dependency information captured at configuration time.
+ */
+public data class ProjectInfo(
+    @get:Input
+    val path: String,
+    @get:Nested
+    val configurations: List<ConfigurationInfo>,
+) : Serializable {
+    public companion object {
+        private const val serialVersionUID: Long = 1L
+    }
+}
+
+/**
+ * Serializable data class to hold configuration dependency information.
+ */
+public data class ConfigurationInfo(
+    @get:Input
+    val name: String,
+    @get:Input
+    val projectDependencies: List<String>,
+) : Serializable {
+    public companion object {
+        private const val serialVersionUID: Long = 1L
+    }
+}
 
 @UntrackedTask(because = "Dependency graph can change without file modifications")
 public abstract class DependentsTask : DefaultTask() {
     @get:Input
     internal abstract val excludedConfs: SetProperty<String>
 
+    @get:Input
+    internal abstract val outputFormats: SetProperty<OutputFormat>
+
+    @get:Input
+    internal abstract val thisProjectPath: Property<String>
+
+    @get:Input
+    internal abstract val rootProjectName: Property<String>
+
+    @get:Nested
+    internal abstract val allProjects: SetProperty<ProjectInfo>
+
     // Not annotated as @OutputFile since this task is @UntrackedTask
     @get:Internal
-    internal val outputFile = project.objects.fileProperty()
+    internal abstract val yamlOutputFile: Property<java.io.File>
 
-    @get:Input
-    internal abstract val generateStdOutGraph: Property<Boolean>
+    @get:Internal
+    internal abstract val jsonOutputFile: Property<java.io.File>
 
-    @get:Input
-    internal abstract val generateYamlGraph: Property<Boolean>
+    @get:Internal
+    internal abstract val mermaidOutputFile: Property<java.io.File>
 
     @TaskAction
     public fun list() {
@@ -35,53 +79,53 @@ public abstract class DependentsTask : DefaultTask() {
         val printers = buildPrinters(excludedConfigurations)
 
         val dependencyGraph = buildDependencyGraph()
-        val projectDependents = dependencyGraph[thisProjectPath] ?: return
+        val projectDependents = dependencyGraph[thisProjectPath.get()] ?: return
 
-        printers.forEach { printer -> printer.print(projectDependents) }
+        printers.forEach { printer -> printer.print(projectDependents, logger) }
     }
 
-    private fun buildPrinters(excludedConfigurations: Set<Configuration>): Set<Printer> =
-        buildSet {
-            if (generateStdOutGraph.get()) {
-                add(StdOutPrinter(excludedConfigurations))
-            }
-
-            if (generateYamlGraph.get()) {
-                add(YamlPrinter(excludedConfigurations, outputFile.get().asFile))
-            }
-        }
+    private fun buildPrinters(excludedConfigurations: Set<Configuration>): List<Printer> =
+        outputFormats
+            .get()
+            .map { format ->
+                when (format) {
+                    OutputFormat.STDOUT -> StdOutPrinter(excludedConfigurations)
+                    OutputFormat.YAML -> YamlPrinter(excludedConfigurations, yamlOutputFile.get())
+                    OutputFormat.JSON -> JsonPrinter(excludedConfigurations, jsonOutputFile.get())
+                    OutputFormat.MERMAID -> MermaidPrinter(excludedConfigurations, mermaidOutputFile.get())
+                }
+            }.sortedBy { it !is StdOutPrinter } // STDOUT first
 
     private fun buildDependencyGraph(): Map<String, ProjectDependents> {
-        val rootProjectName = project.rootProject.name
-        val dependencyGraph: Map<String, ProjectDependents> =
-            project.rootProject.allprojects.sortedBy { it.projectPath }.associate {
-                val projectPath = it.projectPath
+        val rootName = rootProjectName.get()
+        val projects = allProjects.get()
 
-                projectPath to
+        val dependencyGraph: Map<String, ProjectDependents> =
+            projects.sortedBy { it.path }.associate { projectInfo ->
+                projectInfo.path to
                     ProjectDependents(
-                        projectPath,
+                        projectInfo.path,
                         sortedMapOf(
                             Comparator { o1, o2 -> o1.name.compareTo(o2.name) },
                         ),
                     )
             }
 
-        project.rootProject.allprojects.forEach { proj ->
-            val projectDependents = dependencyGraph[proj.projectPath] ?: return@forEach
+        projects.forEach { projectInfo ->
+            val projectDependents = dependencyGraph[projectInfo.path] ?: return@forEach
 
-            proj.configurations.forEach forEachConfiguration@{ configuration ->
-                configuration.dependencies.forEach forEachDependency@{ dependency ->
-                    if (dependency.group?.startsWith(rootProjectName) != true) {
+            projectInfo.configurations.forEach forEachConfiguration@{ configInfo ->
+                configInfo.projectDependencies.forEach forEachDependency@{ dependencyPath ->
+                    if (!dependencyPath.startsWith(rootName)) {
                         return@forEachDependency
                     }
 
-                    val projectDependencyPath = dependency.group?.replace(".", ":") + ":" + dependency.name
-
-                    val projectDependency = dependencyGraph[projectDependencyPath] ?: return@forEachConfiguration
+                    val projectDependency = dependencyGraph[dependencyPath] ?: return@forEachConfiguration
 
                     // Add this project to the dependents of the dependency
+                    @Suppress("UNCHECKED_CAST")
                     val dependentsMap = projectDependency.dependents as MutableMap<Configuration, MutableList<ProjectDependents>>
-                    dependentsMap.compute(Configuration(configuration)) { _, dependents ->
+                    dependentsMap.compute(Configuration(configInfo.name)) { _, dependents ->
                         val list = dependents ?: mutableListOf()
                         if (projectDependents !in list) {
                             list.add(projectDependents)
@@ -94,18 +138,5 @@ public abstract class DependentsTask : DefaultTask() {
         }
 
         return dependencyGraph
-    }
-
-    private val thisProjectPath: String
-        get() = project.projectPath
-
-    private companion object {
-        val Project.projectPath: String
-            get() =
-                if (this == this.rootProject) {
-                    name
-                } else {
-                    group.toString().replace(".", ":") + ":" + name
-                }
     }
 }

@@ -2,7 +2,9 @@ package io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer
 
 import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
 import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
+import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
+import org.gradle.api.logging.Logger
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -12,12 +14,14 @@ import java.io.PrintStream
 class StdOutPrinterTest {
     private val originalOut = System.out
     private lateinit var outputStream: ByteArrayOutputStream
+    private lateinit var logger: Logger
     private val configComparator = Comparator<Configuration> { o1, o2 -> o1.name.compareTo(o2.name) }
 
     @BeforeEach
     fun setUp() {
         outputStream = ByteArrayOutputStream()
         System.setOut(PrintStream(outputStream))
+        logger = mockk(relaxed = true)
     }
 
     @AfterEach
@@ -30,7 +34,7 @@ class StdOutPrinterTest {
         val printer = StdOutPrinter(emptySet())
         val projectDependents = ProjectDependents("myproject")
 
-        printer.print(projectDependents)
+        printer.print(projectDependents, logger)
 
         val output = outputStream.toString()
         assertThat(output).contains("myproject")
@@ -47,7 +51,7 @@ class StdOutPrinterTest {
                 sortedMapOf(configComparator, config to listOf(child)),
             )
 
-        printer.print(projectDependents)
+        printer.print(projectDependents, logger)
 
         val output = outputStream.toString()
         assertThat(output).contains("myproject:core")
@@ -71,7 +75,7 @@ class StdOutPrinterTest {
                 sortedMapOf(configComparator, config to listOf(child)),
             )
 
-        printer.print(projectDependents)
+        printer.print(projectDependents, logger)
 
         val output = outputStream.toString()
         assertThat(output).contains("myproject:core")
@@ -98,7 +102,7 @@ class StdOutPrinterTest {
                 ),
             )
 
-        printer.print(projectDependents)
+        printer.print(projectDependents, logger)
 
         val output = outputStream.toString()
         assertThat(output).contains(":app")
@@ -120,7 +124,7 @@ class StdOutPrinterTest {
                 sortedMapOf(configComparator, config to listOf(child1, child2)),
             )
 
-        printer.print(projectDependents)
+        printer.print(projectDependents, logger)
 
         val output = outputStream.toString()
         assertThat(output).contains(":app")
@@ -148,7 +152,7 @@ class StdOutPrinterTest {
             )
 
         // This should complete without infinite loop
-        printer.print(coreWithApp)
+        printer.print(coreWithApp, logger)
 
         val output = outputStream.toString()
         assertThat(output).contains("myproject:core")

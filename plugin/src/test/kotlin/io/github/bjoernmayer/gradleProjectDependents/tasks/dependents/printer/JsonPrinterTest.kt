@@ -3,7 +3,6 @@ package io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer
 import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
 import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
 import io.mockk.mockk
-import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.logging.Logger
 import org.junit.jupiter.api.BeforeEach
@@ -11,7 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-class YamlPrinterTest {
+class JsonPrinterTest {
     @TempDir
     lateinit var tempDir: File
 
@@ -24,22 +23,22 @@ class YamlPrinterTest {
     }
 
     @Test
-    fun `should write yaml file for project with no dependents`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+    fun `should write json file for project with no dependents`() {
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
 
         assertThat(outputFile).exists()
         val content = outputFile.readText()
-        assertThat(content).contains("name: \"myproject\"")
+        assertThat(content).contains("\"name\": \"myproject\"")
     }
 
     @Test
-    fun `should write yaml file with dependents`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+    fun `should write json file with dependents`() {
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
         val child = ProjectDependents(":app")
         val config = Configuration("implementation")
         val projectDependents =
@@ -52,16 +51,15 @@ class YamlPrinterTest {
 
         assertThat(outputFile).exists()
         val content = outputFile.readText()
-        assertThat(content).contains("name: \"myproject:core\"")
-        assertThat(content).contains("dependents:")
-        assertThat(content).contains("\"implementation\":")
-        assertThat(content).contains("name: \":app\"")
+        assertThat(content).contains("\"name\": \"myproject:core\"")
+        assertThat(content).contains("\"implementation\"")
+        assertThat(content).contains("\"name\": \":app\"")
     }
 
     @Test
-    fun `should write yaml file with nested dependents`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+    fun `should write json file with nested dependents`() {
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
         val grandChild = ProjectDependents(":web")
         val config = Configuration("implementation")
         val child =
@@ -79,16 +77,16 @@ class YamlPrinterTest {
 
         assertThat(outputFile).exists()
         val content = outputFile.readText()
-        assertThat(content).contains("name: \"myproject:core\"")
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("name: \":web\"")
+        assertThat(content).contains("\"name\": \"myproject:core\"")
+        assertThat(content).contains("\"name\": \":app\"")
+        assertThat(content).contains("\"name\": \":web\"")
     }
 
     @Test
     fun `should exclude configurations`() {
-        val outputFile = File(tempDir, "graph.yaml")
+        val outputFile = File(tempDir, "graph.json")
         val excludedConfig = Configuration("testImplementation")
-        val printer = YamlPrinter(setOf(excludedConfig), outputFile)
+        val printer = JsonPrinter(setOf(excludedConfig), outputFile)
 
         val testChild = ProjectDependents(":test-utils")
         val implChild = ProjectDependents(":app")
@@ -107,16 +105,16 @@ class YamlPrinterTest {
         printer.print(projectDependents, logger)
 
         val content = outputFile.readText()
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("\"implementation\":")
+        assertThat(content).contains("\":app\"")
+        assertThat(content).contains("\"implementation\"")
         assertThat(content).doesNotContain(":test-utils")
         assertThat(content).doesNotContain("testImplementation")
     }
 
     @Test
     fun `should write multiple dependents for same configuration`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val config = Configuration("implementation")
@@ -130,26 +128,45 @@ class YamlPrinterTest {
         printer.print(projectDependents, logger)
 
         val content = outputFile.readText()
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("name: \":web\"")
+        assertThat(content).contains("\"name\": \":app\"")
+        assertThat(content).contains("\"name\": \":web\"")
     }
 
     @Test
     fun `should reset file modification time`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
         val projectDependents = ProjectDependents("myproject")
 
         printer.print(projectDependents, logger)
 
-        // Last modified should be set to 0 (epoch)
         assertThat(outputFile.lastModified()).isEqualTo(0L)
     }
 
     @Test
+    fun `should produce valid json`() {
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
+        val child = ProjectDependents(":app")
+        val config = Configuration("implementation")
+        val projectDependents =
+            ProjectDependents(
+                "myproject:core",
+                sortedMapOf(configComparator, config to listOf(child)),
+            )
+
+        printer.print(projectDependents, logger)
+
+        val content = outputFile.readText()
+        // Basic JSON structure validation
+        assertThat(content.trim()).startsWith("{")
+        assertThat(content.trim()).endsWith("}")
+    }
+
+    @Test
     fun `should handle multiple configurations`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
+        val outputFile = File(tempDir, "graph.json")
+        val printer = JsonPrinter(emptySet(), outputFile)
         val child1 = ProjectDependents(":app")
         val child2 = ProjectDependents(":web")
         val apiConfig = Configuration("api")
@@ -168,20 +185,9 @@ class YamlPrinterTest {
         printer.print(projectDependents, logger)
 
         val content = outputFile.readText()
-        assertThat(content).contains("\"api\":")
-        assertThat(content).contains("\"implementation\":")
-        assertThat(content).contains("name: \":app\"")
-        assertThat(content).contains("name: \":web\"")
-    }
-
-    @Test
-    fun `should log path message`() {
-        val outputFile = File(tempDir, "graph.yaml")
-        val printer = YamlPrinter(emptySet(), outputFile)
-        val projectDependents = ProjectDependents("myproject")
-
-        printer.print(projectDependents, logger)
-
-        verify { logger.lifecycle(match { it.contains("YAML Graph written to") && it.contains(outputFile.absolutePath) }) }
+        assertThat(content).contains("\"api\"")
+        assertThat(content).contains("\"implementation\"")
+        assertThat(content).contains("\"name\": \":app\"")
+        assertThat(content).contains("\"name\": \":web\"")
     }
 }

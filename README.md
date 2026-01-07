@@ -87,33 +87,72 @@ projectDependents {
 }
 ```
 
-### `generateStdOutGraph`
+### `outputFormats`
 
-Default is set to `true`.
+Configure which output formats to generate. Available formats:
 
-Setting this to `false` disables the usual graph of dependents.
+| Format    | Description                      | Output                               |
+| --------- | -------------------------------- | ------------------------------------ |
+| `STDOUT`  | Tree format printed to console   | Console output                       |
+| `YAML`    | YAML representation of the graph | `build/projectDependents/graph.yaml` |
+| `JSON`    | JSON representation of the graph | `build/projectDependents/graph.json` |
+| `MERMAID` | Mermaid flowchart in Markdown    | `build/projectDependents/graph.md`   |
+
+Default is `STDOUT` only.
 
 ```kts
 // build.gradle.kts
+import io.github.bjoernmayer.gradleProjectDependents.OutputFormat
 
 projectDependents {
-    generateStdOutGraph = false
+    // Use only YAML output (replaces default STDOUT)
+    outputFormats.set(setOf(OutputFormat.YAML))
+
+    // Or use multiple formats
+    outputFormats.set(setOf(OutputFormat.STDOUT, OutputFormat.JSON, OutputFormat.MERMAID))
 }
 ```
 
-### `generateYamlGraph`
+#### STDOUT Output Example
 
-Default is set to `false`.
+```
++--- project root-project-name:projectA
+|    +--- project root-project-name:projectB (implementation)
+|    |    \--- project root-project-name:projectC (implementation)
+|    \--- project root-project-name:projectC (implementation)
+```
 
-Setting this will generate a `graph.yaml` in `build/projectDependents/`.
-It is a yaml representation of the graph.
+#### JSON Output Example
 
-```kts
-// build.gradle.kts
-
-projectDependents {
-    generateYamlGraph = true
+```json
+{
+  "name": "root-project-name:projectA",
+  "dependents": {
+    "implementation": [
+      {
+        "name": "root-project-name:projectB",
+        "dependents": {
+          "implementation": [
+            {
+              "name": "root-project-name:projectC",
+              "dependents": {}
+            }
+          ]
+        }
+      }
+    ]
+  }
 }
+```
+
+#### Mermaid Output Example
+
+The Mermaid output generates a flowchart that can be rendered in GitHub, GitLab, or any Mermaid-compatible viewer:
+
+```mermaid
+flowchart BT
+    root_project_name_projectB["root-project-name:projectB"] -->|implementation| root_project_name_projectA["root-project-name:projectA"]
+    root_project_name_projectC["root-project-name:projectC"] -->|implementation| root_project_name_projectB["root-project-name:projectB"]
 ```
 
 ## Developing

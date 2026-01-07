@@ -21,43 +21,34 @@ class ProjectDependentsFunctionalTest {
         buildFile = File(projectDir, "build.gradle.kts")
     }
 
-    @Test
-    fun `should run dependents task on single project`() {
+    private fun setupSettings(
+        rootProjectName: String = "test-project",
+        subprojects: List<String> = emptyList(),
+    ) {
+        val includeStatement =
+            if (subprojects.isNotEmpty()) {
+                "\ninclude(${subprojects.joinToString(", ") { "\"$it\"" }})"
+            } else {
+                ""
+            }
         settingsFile.writeText(
             """
-            rootProject.name = "test-project"
+            rootProject.name = "$rootProjectName"$includeStatement
             """.trimIndent(),
         )
-
-        buildFile.writeText(
-            """
-            plugins {
-                id("io.github.bjoernmayer.gradle-project-dependents")
-            }
-            """.trimIndent(),
-        )
-
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments("dependents", "--stacktrace")
-                .build()
-
-        assertThat(result.task(":dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(result.output).contains("test-project")
     }
 
-    @Test
-    fun `should show dependents in multi-project build`() {
-        // Root project
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            include("core", "app")
-            """.trimIndent(),
-        )
+    private fun setupRootBuildFile(extensionConfig: String = "") {
+        val extensionBlock =
+            if (extensionConfig.isNotEmpty()) {
+                """
+                
+                extensions.configure<io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsExtension> {
+                    $extensionConfig
+                }"""
+            } else {
+                ""
+            }
 
         buildFile.writeText(
             """
@@ -68,36 +59,69 @@ class ProjectDependentsFunctionalTest {
             subprojects {
                 group = "test-project"
                 apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
-                apply(plugin = "java-library")
+                apply(plugin = "java-library")$extensionBlock
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun setupSubproject(
+        name: String,
+        dependencies: Map<String, String> = emptyMap(),
+    ) {
+        File(projectDir, name).mkdirs()
+        val depsBlock =
+            if (dependencies.isNotEmpty()) {
+                val depsString =
+                    dependencies.entries.joinToString("\n    ") { (config, project) ->
+                        "$config(project(\":$project\"))"
+                    }
+                """
+                dependencies {
+                    $depsString
+                }
+                """.trimIndent()
+            } else {
+                ""
+            }
+        File(projectDir, "$name/build.gradle.kts").writeText(depsBlock)
+    }
+
+    private fun runDependentsTask(
+        project: String = "",
+        vararg args: String = arrayOf("--stacktrace"),
+    ) = GradleRunner
+        .create()
+        .withProjectDir(projectDir)
+        .withPluginClasspath()
+        .withArguments(if (project.isEmpty()) "dependents" else ":$project:dependents", *args)
+        .build()
+
+    @Test
+    fun `should run dependents task on single project`() {
+        settingsFile.writeText("""rootProject.name = "test-project"""")
+        buildFile.writeText(
+            """
+            plugins {
+                id("io.github.bjoernmayer.gradle-project-dependents")
             }
             """.trimIndent(),
         )
 
-        // Core module
-        File(projectDir, "core").mkdirs()
-        File(projectDir, "core/build.gradle.kts").writeText(
-            """
-            // core module - no dependencies
-            """.trimIndent(),
-        )
+        val result = runDependentsTask()
 
-        // App module depends on core
-        File(projectDir, "app").mkdirs()
-        File(projectDir, "app/build.gradle.kts").writeText(
-            """
-            dependencies {
-                implementation(project(":core"))
-            }
-            """.trimIndent(),
-        )
+        assertThat(result.task(":dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.output).contains("test-project")
+    }
 
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments(":core:dependents", "--stacktrace")
-                .build()
+    @Test
+    fun `should show dependents in multi-project build`() {
+        setupSettings(subprojects = listOf("core", "app"))
+        setupRootBuildFile()
+        setupSubproject("core")
+        setupSubproject("app", dependencies = mapOf("implementation" to "core"))
+
+        val result = runDependentsTask("core")
 
         assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(result.output).contains("test-project:core")
@@ -106,117 +130,29 @@ class ProjectDependentsFunctionalTest {
 
     @Test
     fun `should exclude configurations`() {
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            include("core", "app", "test-utils")
-            """.trimIndent(),
-        )
+        setupSettings(subprojects = listOf("core", "app", "test-utils"))
+        setupRootBuildFile(extensionConfig = """excludedConfigurations.add("testImplementation")""")
+        setupSubproject("core")
+        setupSubproject("app", dependencies = mapOf("implementation" to "core"))
+        setupSubproject("test-utils", dependencies = mapOf("testImplementation" to "core"))
 
-        buildFile.writeText(
-            """
-            plugins {
-                id("io.github.bjoernmayer.gradle-project-dependents")
-            }
-            
-            subprojects {
-                group = "test-project"
-                apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
-                apply(plugin = "java-library")
-                
-                extensions.configure<io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsExtension> {
-                    excludedConfigurations.add("testImplementation")
-                }
-            }
-            """.trimIndent(),
-        )
-
-        // Core module
-        File(projectDir, "core").mkdirs()
-        File(projectDir, "core/build.gradle.kts").writeText("")
-
-        // App module depends on core via implementation
-        File(projectDir, "app").mkdirs()
-        File(projectDir, "app/build.gradle.kts").writeText(
-            """
-            dependencies {
-                implementation(project(":core"))
-            }
-            """.trimIndent(),
-        )
-
-        // Test-utils depends on core via testImplementation
-        File(projectDir, "test-utils").mkdirs()
-        File(projectDir, "test-utils/build.gradle.kts").writeText(
-            """
-            dependencies {
-                testImplementation(project(":core"))
-            }
-            """.trimIndent(),
-        )
-
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments(":core:dependents", "--stacktrace")
-                .build()
+        val result = runDependentsTask("core")
 
         assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(result.output).contains("test-project:app")
-        // test-utils should be excluded since it uses testImplementation
         assertThat(result.output).doesNotContain("test-utils")
     }
 
     @Test
     fun `should generate yaml output when enabled`() {
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            include("core", "app")
-            """.trimIndent(),
+        setupSettings(subprojects = listOf("core", "app"))
+        setupRootBuildFile(
+            extensionConfig = "outputFormats.add(io.github.bjoernmayer.gradleProjectDependents.OutputFormat.YAML)",
         )
+        setupSubproject("core")
+        setupSubproject("app", dependencies = mapOf("implementation" to "core"))
 
-        buildFile.writeText(
-            """
-            plugins {
-                id("io.github.bjoernmayer.gradle-project-dependents")
-            }
-            
-            subprojects {
-                group = "test-project"
-                apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
-                apply(plugin = "java-library")
-                
-                extensions.configure<io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsExtension> {
-                    generateYamlGraph.set(true)
-                }
-            }
-            """.trimIndent(),
-        )
-
-        // Core module
-        File(projectDir, "core").mkdirs()
-        File(projectDir, "core/build.gradle.kts").writeText("")
-
-        // App module depends on core
-        File(projectDir, "app").mkdirs()
-        File(projectDir, "app/build.gradle.kts").writeText(
-            """
-            dependencies {
-                implementation(project(":core"))
-            }
-            """.trimIndent(),
-        )
-
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments(":core:dependents", "--stacktrace")
-                .build()
+        val result = runDependentsTask("core")
 
         assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
 
@@ -229,129 +165,38 @@ class ProjectDependentsFunctionalTest {
 
     @Test
     fun `should disable stdout output when configured`() {
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            include("core", "app")
-            """.trimIndent(),
+        setupSettings(subprojects = listOf("core", "app"))
+        setupRootBuildFile(
+            extensionConfig = "outputFormats.set(setOf(io.github.bjoernmayer.gradleProjectDependents.OutputFormat.YAML))",
         )
+        setupSubproject("core")
+        setupSubproject("app", dependencies = mapOf("implementation" to "core"))
 
-        buildFile.writeText(
-            """
-            plugins {
-                id("io.github.bjoernmayer.gradle-project-dependents")
-            }
-            
-            subprojects {
-                group = "test-project"
-                apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
-                apply(plugin = "java-library")
-                
-                extensions.configure<io.github.bjoernmayer.gradleProjectDependents.ProjectDependentsExtension> {
-                    generateStdOutGraph.set(false)
-                    generateYamlGraph.set(true)
-                }
-            }
-            """.trimIndent(),
-        )
-
-        // Core module
-        File(projectDir, "core").mkdirs()
-        File(projectDir, "core/build.gradle.kts").writeText("")
-
-        // App module
-        File(projectDir, "app").mkdirs()
-        File(projectDir, "app/build.gradle.kts").writeText(
-            """
-            dependencies {
-                implementation(project(":core"))
-            }
-            """.trimIndent(),
-        )
-
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments(":core:dependents", "--stacktrace")
-                .build()
+        val result = runDependentsTask("core")
 
         assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-        // Should still show yaml file message but not the tree
-        assertThat(result.output).contains("Yaml Graph written to")
+        assertThat(result.output).contains("YAML Graph written to")
     }
 
     @Test
     fun `should handle transitive dependents`() {
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            include("core", "service", "app")
-            """.trimIndent(),
-        )
+        setupSettings(subprojects = listOf("core", "service", "app"))
+        setupRootBuildFile()
+        setupSubproject("core")
+        setupSubproject("service", dependencies = mapOf("implementation" to "core"))
+        setupSubproject("app", dependencies = mapOf("implementation" to "service"))
 
-        buildFile.writeText(
-            """
-            plugins {
-                id("io.github.bjoernmayer.gradle-project-dependents")
-            }
-            
-            subprojects {
-                group = "test-project"
-                apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
-                apply(plugin = "java-library")
-            }
-            """.trimIndent(),
-        )
-
-        // Core module - no dependencies
-        File(projectDir, "core").mkdirs()
-        File(projectDir, "core/build.gradle.kts").writeText("")
-
-        // Service module depends on core
-        File(projectDir, "service").mkdirs()
-        File(projectDir, "service/build.gradle.kts").writeText(
-            """
-            dependencies {
-                implementation(project(":core"))
-            }
-            """.trimIndent(),
-        )
-
-        // App module depends on service
-        File(projectDir, "app").mkdirs()
-        File(projectDir, "app/build.gradle.kts").writeText(
-            """
-            dependencies {
-                implementation(project(":service"))
-            }
-            """.trimIndent(),
-        )
-
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments(":core:dependents", "--stacktrace")
-                .build()
+        val result = runDependentsTask("core")
 
         assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(result.output).contains("test-project:core")
         assertThat(result.output).contains("test-project:service")
-        // App depends on service which depends on core, so transitive
         assertThat(result.output).contains("test-project:app")
     }
 
     @Test
     fun `should list task in help group`() {
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            """.trimIndent(),
-        )
-
+        settingsFile.writeText("""rootProject.name = "test-project"""")
         buildFile.writeText(
             """
             plugins {
@@ -374,48 +219,12 @@ class ProjectDependentsFunctionalTest {
 
     @Test
     fun `should work with api configuration`() {
-        settingsFile.writeText(
-            """
-            rootProject.name = "test-project"
-            include("core", "api-client")
-            """.trimIndent(),
-        )
+        setupSettings(subprojects = listOf("core", "api-client"))
+        setupRootBuildFile()
+        setupSubproject("core")
+        setupSubproject("api-client", dependencies = mapOf("api" to "core"))
 
-        buildFile.writeText(
-            """
-            plugins {
-                id("io.github.bjoernmayer.gradle-project-dependents")
-            }
-            
-            subprojects {
-                group = "test-project"
-                apply(plugin = "io.github.bjoernmayer.gradle-project-dependents")
-                apply(plugin = "java-library")
-            }
-            """.trimIndent(),
-        )
-
-        // Core module
-        File(projectDir, "core").mkdirs()
-        File(projectDir, "core/build.gradle.kts").writeText("")
-
-        // API client depends on core via api
-        File(projectDir, "api-client").mkdirs()
-        File(projectDir, "api-client/build.gradle.kts").writeText(
-            """
-            dependencies {
-                api(project(":core"))
-            }
-            """.trimIndent(),
-        )
-
-        val result =
-            GradleRunner
-                .create()
-                .withProjectDir(projectDir)
-                .withPluginClasspath()
-                .withArguments(":core:dependents", "--stacktrace")
-                .build()
+        val result = runDependentsTask("core")
 
         assertThat(result.task(":core:dependents")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(result.output).contains("test-project:api-client")

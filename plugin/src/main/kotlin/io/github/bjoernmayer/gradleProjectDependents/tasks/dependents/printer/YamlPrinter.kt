@@ -1,8 +1,9 @@
 package io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer
 
+import io.github.bjoernmayer.gradleProjectDependents.tasks.dependents.printer.model.DependentsGraph
 import io.github.bjoernmayer.gradleProjectDependents.values.Configuration
-import io.github.bjoernmayer.gradleProjectDependents.values.Connection
 import io.github.bjoernmayer.gradleProjectDependents.values.ProjectDependents
+import org.gradle.api.logging.Logger
 import java.io.File
 import java.io.OutputStreamWriter
 
@@ -10,22 +11,26 @@ internal class YamlPrinter(
     override val excludedConfigurations: Set<Configuration>,
     private val outputFile: File,
 ) : Printer {
-    override fun print(projectDependents: ProjectDependents) {
+    override fun print(
+        projectDependents: ProjectDependents,
+        logger: Logger,
+    ) {
         outputFile.parentFile?.mkdirs()
 
+        val graph = DependentsGraph.fromProjectDependents(projectDependents, excludedConfigurations)
+
         outputFile.writer().use { writer ->
-            projectDependents.write(writer, emptySet(), 0, null)
+            graph.write(writer, 0, null)
         }
 
         outputFile.setLastModified(0)
 
-        println("Yaml Graph written to ${outputFile.absolutePath}")
+        logger.lifecycle("YAML Graph written to ${outputFile.absolutePath}")
     }
 
-    private fun ProjectDependents.write(
+    private fun DependentsGraph.write(
         writer: OutputStreamWriter,
-        alreadyPrintedConnections: Set<Connection>,
-        level: Int = 1,
+        level: Int,
         configuration: String?,
     ) {
         val indent = "  ".repeat(level)
@@ -41,13 +46,7 @@ internal class YamlPrinter(
 
         writer.write("name: \"$name\"\n")
 
-        val dependentsToPrint =
-            dependents
-                .filterNot {
-                    it.key in excludedConfigurations
-                }
-
-        if (dependentsToPrint.isEmpty()) {
+        if (dependents.isEmpty()) {
             return
         }
 
@@ -56,27 +55,14 @@ internal class YamlPrinter(
         }
         writer.write("dependents:\n")
 
-        dependentsToPrint.entries
-            .forEach { (configuration, dependents) ->
-                dependents.forEachIndexed { index, projectDependents ->
-                    val connection =
-                        Connection(
-                            configuration = configuration,
-                            dependentProjectName = this.name,
-                            dependencyProjectName = projectDependents.name,
-                        )
-
-                    if (connection in alreadyPrintedConnections) {
-                        return@forEachIndexed
-                    }
-
-                    projectDependents.write(
-                        writer,
-                        alreadyPrintedConnections + setOf(connection),
-                        level + 1,
-                        configuration.name.takeIf { index == 0 },
-                    )
-                }
+        dependents.entries.forEach { (configuration, dependentsList) ->
+            dependentsList.forEachIndexed { index, dependent ->
+                dependent.write(
+                    writer,
+                    level + 1,
+                    configuration.takeIf { index == 0 },
+                )
             }
+        }
     }
 }
