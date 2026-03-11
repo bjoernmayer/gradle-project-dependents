@@ -1,19 +1,19 @@
 [versions]
+assertj = "3.27.7"
+junit = "6.0.3"
 kotlin = "2.3.10"
 kotlinxSerializationJson = "1.10.0"
-ktlint-gradle = "14.1.0"
 ktlint = "1.8.0"
-pluginPublish = "2.1.0"
-junit = "6.0.3"
+ktlint-gradle = "14.1.0"
 mockk = "1.14.9"
-assertj = "3.27.7"
+pluginPublish = "2.1.0"
 
 [libraries]
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
