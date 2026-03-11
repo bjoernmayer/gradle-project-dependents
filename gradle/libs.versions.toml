@@ -1,11 +1,11 @@
 [versions]
-kotlin = "2.3.0"
-kotlinxSerializationJson = "1.9.0"
-ktlint-gradle = "14.0.1"
+kotlin = "2.3.10"
+kotlinxSerializationJson = "1.10.0"
+ktlint-gradle = "14.1.0"
 ktlint = "1.8.0"
-pluginPublish = "2.0.0"
-junit = "6.0.1"
-mockk = "1.14.7"
+pluginPublish = "2.1.0"
+junit = "6.0.3"
+mockk = "1.14.9"
 assertj = "3.27.7"
 
 [libraries]
