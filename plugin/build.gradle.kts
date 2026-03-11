@@ -1,11 +1,11 @@
 plugins {
     idea
     `java-gradle-plugin`
-    kotlin("jvm") version "2.3.0"
-    kotlin("plugin.serialization") version "2.3.0"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
 
-    id("org.jlleitschuh.gradle.ktlint") version "14.0.1"
-    id("com.gradle.plugin-publish") version "2.0.0"
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.plugin.publish)
 }
 
 kotlin {
@@ -15,7 +15,11 @@ kotlin {
 }
 
 ktlint {
-    version.set("1.8.0")
+    version.set(
+        libs.versions.ktlint
+            .asProvider()
+            .get(),
+    )
 }
 
 repositories {
@@ -24,13 +28,13 @@ repositories {
 
 dependencies {
     implementation(gradleApi())
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation(libs.kotlinx.serialization.json)
 
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.1")
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.junit.jupiter)
 
-    testImplementation("io.mockk:mockk:1.14.7")
-    testImplementation("org.assertj:assertj-core:3.27.7")
+    testImplementation(libs.mockk)
+    testImplementation(libs.assertj.core)
     testImplementation(gradleTestKit())
 }
 
