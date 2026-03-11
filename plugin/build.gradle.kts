@@ -11,7 +11,10 @@ plugins {
 kotlin {
     explicitApi()
 
-    jvmToolchain(21)
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+        vendor.set(JvmVendorSpec.BELLSOFT)
+    }
 }
 
 ktlint {
