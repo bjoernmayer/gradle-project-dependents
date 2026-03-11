@@ -30,7 +30,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.1")
 
     testImplementation("io.mockk:mockk:1.14.7")
-    testImplementation("org.assertj:assertj-core:3.27.6")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation(gradleTestKit())
 }
 
