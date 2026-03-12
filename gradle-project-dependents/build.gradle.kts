@@ -43,7 +43,7 @@ dependencies {
 
 group = "io.github.bjoernmayer"
 
-version = "1.1.0"
+version = "1.2.0"
 
 gradlePlugin {
     website = "https://github.com/bjoernmayer/gradle-project-dependents"
