@@ -3,4 +3,4 @@ plugins {
 }
 rootProject.name = "gradle-project-dependents"
 
-include(":plugin")
+include(":gradle-project-dependents")
